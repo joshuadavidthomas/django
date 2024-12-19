@@ -4801,6 +4801,34 @@ Options: <select multiple name="options" aria-invalid="true" required>
         with self.assertRaises(KeyError):
             f["name"]
 
+    def test_aria_describedby_property(self):
+        class TestForm(Form):
+            name = CharField(help_text="Some help text")
+
+        form = TestForm({"name": "MyName"})
+        self.assertEqual(form["name"].aria_describedby, "id_name_helptext")
+
+        form = TestForm(auto_id=None)
+        self.assertEqual(form["name"].aria_describedby, "")
+
+        class TestFormHidden(Form):
+            name = CharField(help_text="Some help text", widget=HiddenInput)
+
+        form = TestFormHidden()
+        self.assertEqual(form["name"].aria_describedby, "")
+
+        class TestFormWithAttrs(Form):
+            name = CharField(widget=TextInput(attrs={"aria-describedby": "my-id"}))
+
+        form = TestFormWithAttrs({"name": "MyName"})
+        self.assertIs(form["name"].aria_describedby, None)
+
+        class TestFormWithoutHelpText(Form):
+            name = CharField()
+
+        form = TestFormWithoutHelpText()
+        self.assertEqual(form["name"].aria_describedby, "")
+
 
 @jinja2_tests
 class Jinja2FormsTestCase(FormsTestCase):
@@ -4848,6 +4876,12 @@ class RendererTests(SimpleTestCase):
         custom = CustomRenderer()
         form = CustomForm(renderer=custom)
         self.assertEqual(form.renderer, custom)
+
+    def test_get_context_errors(self):
+        custom = CustomRenderer()
+        form = Form(renderer=custom)
+        context = form.get_context()
+        self.assertEqual(context["errors"].renderer, custom)
 
 
 class TemplateTests(SimpleTestCase):
@@ -5311,6 +5345,22 @@ class OverrideTests(SimpleTestCase):
             '<div class="error">This field is required.</div></div>'
             '<p>Comment: <input type="text" name="comment" aria-invalid="true" '
             "required></p>",
+        )
+
+    def test_custom_renderer_error_dict(self):
+        class CustomRenderer(DjangoTemplates):
+            def render(self, template_name, context, request=None):
+                if template_name == "django/forms/errors/dict/default.html":
+                    return "<strong>So many errors!</strong>"
+                return super().render(template_name, context, request)
+
+        form = Form({}, renderer=CustomRenderer())
+        form.full_clean()
+        form.add_error(None, "Test error")
+
+        self.assertHTMLEqual(
+            form.errors.render(),
+            "<strong>So many errors!</strong>",
         )
 
     def test_cyclic_context_boundfield_render(self):
