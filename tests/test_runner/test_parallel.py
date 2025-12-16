@@ -32,6 +32,12 @@ class ExceptionThatFailsUnpickling(Exception):
     def __init__(self, arg):
         super().__init__()
 
+    def __reduce__(self):
+        # tblib 3.2+ makes exception subclasses picklable by default.
+        # Return (cls, ()) so the constructor fails on unpickle, preserving
+        # the needed behavior for test_pickle_errors_detection.
+        return (self.__class__, ())
+
 
 class ParallelTestRunnerTest(SimpleTestCase):
     """
@@ -170,6 +176,8 @@ class RemoteTestResultTest(SimpleTestCase):
         result = RemoteTestResult()
         result._confirm_picklable(picklable_error)
 
+        # The exception can be pickled but not unpickled.
+        pickle.dumps(not_unpicklable_error)
         msg = "__init__() missing 1 required positional argument"
         with self.assertRaisesMessage(TypeError, msg):
             result._confirm_picklable(not_unpicklable_error)
@@ -301,9 +309,8 @@ class ParallelTestSuiteTest(SimpleTestCase):
                 test_result.shouldStop = True
                 return (0, remote_result.events)
 
-            mock_pool.return_value.imap_unordered.return_value = unittest.mock.Mock(
-                next=fake_next
-            )
+            mock_imap = mock_pool.return_value.__enter__.return_value.imap_unordered
+            mock_imap.return_value = unittest.mock.Mock(next=fake_next)
             pts.run(test_result)
 
         self.assertIn("ValueError: woops", test_result.errors[0][1])
