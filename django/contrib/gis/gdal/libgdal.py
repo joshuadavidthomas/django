@@ -45,8 +45,6 @@ def load_gdal():
             "gdal305",
             "gdal304",
             "gdal303",
-            "gdal302",
-            "gdal301",
         ]
     elif os.name == "posix":
         # *NIX library names.
@@ -62,8 +60,6 @@ def load_gdal():
             "gdal3.5.0",
             "gdal3.4.0",
             "gdal3.3.0",
-            "gdal3.2.0",
-            "gdal3.1.0",
         ]
     else:
         raise ImproperlyConfigured('GDAL is unsupported on OS "%s".' % os.name)

@@ -1,7 +1,7 @@
 from ctypes import POINTER, c_char_p, c_double, c_int, c_void_p
 
 from django.contrib.gis.gdal.envelope import OGREnvelope
-from django.contrib.gis.gdal.libgdal import GDAL_VERSION, GDALFuncFactory
+from django.contrib.gis.gdal.libgdal import GDALFuncFactory
 from django.contrib.gis.gdal.prototypes.errcheck import check_envelope
 from django.contrib.gis.gdal.prototypes.generation import (
     BoolOutput,
@@ -13,7 +13,6 @@ from django.contrib.gis.gdal.prototypes.generation import (
     StringOutput,
     VoidOutput,
 )
-from django.utils.functional import cached_property
 
 
 # ### Generation routines specific to this module ###
@@ -60,27 +59,11 @@ getm = PntFunc("OGR_G_GetM")
 
 
 # Geometry creation routines.
-class _FromWkb:
-    def __call__(self, *args, **kwargs):
-        return self.func(*args, **kwargs)
-
-    @cached_property
-    def func(self):
-        if GDAL_VERSION >= (3, 3):
-            return GeomOutput(
-                "OGR_G_CreateFromWkbEx",
-                argtypes=[c_char_p, c_void_p, POINTER(c_void_p), c_int],
-                offset=-2,
-            )
-        else:
-            return GeomOutput(
-                "OGR_G_CreateFromWkb",
-                argtypes=[c_char_p, c_void_p, POINTER(c_void_p), c_int],
-                offset=-2,
-            )
-
-
-from_wkb = _FromWkb()
+from_wkb = GeomOutput(
+    "OGR_G_CreateFromWkbEx",
+    argtypes=[c_char_p, c_void_p, POINTER(c_void_p), c_int],
+    offset=-2,
+)
 from_wkt = GeomOutput(
     "OGR_G_CreateFromWkt",
     argtypes=[POINTER(c_char_p), c_void_p, POINTER(c_void_p)],
@@ -132,20 +115,7 @@ to_gml = StringOutput(
     "OGR_G_ExportToGML", argtypes=[c_void_p], str_result=True, decoding="ascii"
 )
 
-
-class _GetWkbSize:
-    def __call__(self, *args, **kwargs):
-        return self.func(*args, **kwargs)
-
-    @cached_property
-    def func(self):
-        if GDAL_VERSION >= (3, 3):
-            return IntOutput("OGR_G_WkbSizeEx", argtypes=[c_void_p])
-        else:
-            return IntOutput("OGR_G_WkbSize", argtypes=[c_void_p])
-
-
-get_wkbsize = _GetWkbSize()
+get_wkbsize = IntOutput("OGR_G_WkbSizeEx", argtypes=[c_void_p])
 
 # Geometry spatial-reference related routines.
 assign_srs = VoidOutput(
